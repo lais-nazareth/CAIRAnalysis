@@ -135,7 +135,7 @@ def insertSeam(output, seams):
     
     return newOutput
 
-def seamCarvingRemovalWidth(output, numRemove):
+def seamCarvingRemovalWidth(output, numRemove,transposed = False):
     output = np.copy(output)
 
     for i in range(numRemove):
@@ -145,11 +145,21 @@ def seamCarvingRemovalWidth(output, numRemove):
 
         seam = backtrackSeam(cumulativeEnergy=cumulativeMap)
         
-        preview_copy = np.copy(output)
-        altura = preview_copy.shape[0]
+        #visualizacao do preview
+        preview = np.copy(output)
+        altura = preview.shape[0]
         for linha in range(altura):
             coluna = seam[linha]
-            preview_copy[linha,coluna] = [0, 0, 255]
+            preview[linha,coluna] = [0, 0, 255]
+        #desvira a imagem caso seja a transposta do height removal
+        if transposed:
+            #verificacao se a imagem eh colorida ou gray scale
+            if len(preview.shape) == 3:
+                preview_copy = np.transpose(preview, (1, 0, 2))
+            else:
+                preview_copy = np.transpose(preview, (1, 0))
+        else:
+            preview_copy = preview
         cv2.imshow("Preview",preview_copy)
         cv2.waitKey(1)
 
@@ -165,7 +175,7 @@ def seamCarvingRemovalHeight(output, numRemove):
     else:
         outputTransposta = np.transpose(output, (1, 0))
 
-    outputReduzido = seamCarvingRemovalWidth(outputTransposta, numRemove=numRemove)
+    outputReduzido = seamCarvingRemovalWidth(outputTransposta, numRemove=numRemove, transposed=True)
 
     #transpor de volta
     if len(output.shape) == 3:
@@ -175,7 +185,7 @@ def seamCarvingRemovalHeight(output, numRemove):
 
     return outputFinal
 
-def seamCarvingInsertWidth(output, numInsert):
+def seamCarvingInsertWidth(output, numInsert, transposed = False):
     tempOutput = np.copy(output)
     seams = []
 
@@ -184,12 +194,50 @@ def seamCarvingInsertWidth(output, numInsert):
         energyMap = computeEnergySobel(tempOutput)
         cumulativeMap = computeCumulativeEnergy(enegrgyMap=energyMap)
         seam = backtrackSeam(cumulativeEnergy=cumulativeMap)
+        
+        #visualizacao do preview
+        preview = np.copy(output)
+        altura = preview.shape[0]
+        for linha in range(altura):
+            coluna = seam[linha]
+            preview[linha,coluna] = [0, 255, 255]
+        #desvira a imagem caso seja a transposta do height removal
+        if transposed:
+            #verificacao se a imagem eh colorida ou gray scale
+            if len(preview.shape) == 3:
+                preview_copy = np.transpose(preview, (1, 0, 2))
+            else:
+                preview_copy = np.transpose(preview, (1, 0))
+        else:
+            preview_copy = preview
+        cv2.imshow("Preview",preview_copy)
+        cv2.waitKey(1)
+        
         seams.append(seam)
         tempOutput = removeSeam(tempOutput, seam)
     
     outputFinal = np.copy(output)
     while len(seams) > 0:
         currentSeam = seams.pop(0)
+        
+        #visualizacao do preview
+        preview = np.copy(outputFinal)
+        altura = preview.shape[0]
+        for linha in range(altura):
+            coluna = currentSeam[linha]
+            preview[linha,coluna] = [0, 255, 0]
+        #desvira a imagem caso seja a transposta do height removal
+        if transposed:
+            #verificacao se a imagem eh colorida ou gray scale
+            if len(preview.shape) == 3:
+                preview_copy = np.transpose(preview, (1, 0, 2))
+            else:
+                preview_copy = np.transpose(preview, (1, 0))
+        else:
+            preview_copy = preview
+        cv2.imshow("Preview",preview_copy)
+        cv2.waitKey(1)
+        
         outputFinal = insertSeam(outputFinal, currentSeam)
         seams = update_seams(seams, currentSeam)
 
@@ -201,7 +249,7 @@ def seamCarvingInsertHeight(output, numInsert):
     else:
         outputTransposta = np.transpose(output, (1, 0))
 
-    outputReduzido = seamCarvingInsertWidth(outputTransposta, numInsert)
+    outputReduzido = seamCarvingInsertWidth(outputTransposta, numInsert, transposed=True)
 
     if len(output.shape) == 3:
         outputFinal = np.transpose(outputReduzido, (1, 0, 2))
@@ -231,8 +279,9 @@ if __name__ == "__main__":
     
         experimentos = [
             (800, 300, "pedra_A_panoramica_altura_reduzida.jpg"),
-            (300, 800, "pedra_B_squish_largura_reduzida.jpg"),
-            (800, 900, "pedra_C_expansao_largura_inserida.jpg")
+            (300, 600, "pedra_B_squish_largura_reduzida.jpg"),
+            (1100, 600, "pedra_C_expansao_largura_inserida.jpg"),
+            (800,900, "pedra_D_expansao_altura_inserida.jpg")
         ]
 
         for idx, (larguraAlvo, alturaAlvo, nome_saida) in enumerate(experimentos, 1):
@@ -256,3 +305,4 @@ if __name__ == "__main__":
 
             cv2.imwrite(nome_saida, output)
             print(f"Salvo: {nome_saida}")
+            cv2.destroyAllWindows()
