@@ -1,6 +1,6 @@
 import numpy as np
 import os
-os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.1\bin")
+#os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.1\bin")
 import cv2
 
 
@@ -8,12 +8,13 @@ def computeEnergySobel(output):
 
     if len(output.shape) == 3:
         outputGray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
-        print("Converter para GRAYSCALE")
+        #print("Converter para GRAYSCALE")
     else:
         outputGray = output
 
     outputGray = outputGray.astype(float)
 
+    #declaracao dos operadores
     sxKernel = np.array([[-1, 0 , 1],
                          [-2, 0, 2],
                          [-1, 0, 1]])
@@ -39,18 +40,21 @@ def computeEnergySobel(output):
           v[3]*syKernel[1,0] + v[4]*syKernel[1,1] + v[5]*syKernel[1,2] +
           v[6]*syKernel[2,0] + v[7]*syKernel[2,1] + v[8]*syKernel[2,2])
     
+    
     mag = np.sqrt(sx**2 + sy**2)
 
+    #normalizacao
     max_val = np.max(mag)
     if max_val > 0:
         mag = (mag / max_val) * 255
     mag = np.clip(mag, 0, 255).astype(np.uint8)
 
+    #correcao de borda
     mag = cv2.copyMakeBorder(mag, 1, 1, 1, 1, cv2.BORDER_REPLICATE)
 
     return mag
 
-
+#calculo da matriz de prog dinamica
 def computeCumulativeEnergy(enegrgyMap):
     rows, cols = enegrgyMap.shape
     m = np.copy(enegrgyMap).astype(float)
@@ -65,6 +69,7 @@ def computeCumulativeEnergy(enegrgyMap):
 
     return m
 
+#encontrando o menor caminho
 def backtrackSeam(cumulativeEnergy):
     rows, cols = cumulativeEnergy.shape
     seam = np.zeros(rows, dtype=int)
@@ -84,6 +89,7 @@ def backtrackSeam(cumulativeEnergy):
 
     return seam
 
+#remover seam
 def removeSeam(output, seam):
     rows, cols = output.shape[:2]
     mask = np.ones((rows, cols), dtype=bool)
@@ -138,6 +144,14 @@ def seamCarvingRemovalWidth(output, numRemove):
         cumulativeMap = computeCumulativeEnergy(enegrgyMap=energyMap)
 
         seam = backtrackSeam(cumulativeEnergy=cumulativeMap)
+        
+        preview_copy = np.copy(output)
+        altura = preview_copy.shape[0]
+        for linha in range(altura):
+            coluna = seam[linha]
+            preview_copy[linha,coluna] = [0, 0, 255]
+        cv2.imshow("Preview",preview_copy)
+        cv2.waitKey(1)
 
         output = removeSeam(output, seam)
     
@@ -205,20 +219,20 @@ def update_seams(remaining_seams, current_seam):
         return output
 
 if __name__ == "__main__":
-    imgOriginal = cv2.imread("pedra.jpg")
+    imgOriginal = cv2.imread("Seam Carving/pedra.jpg")
     
     if imgOriginal is None:
         print("Erro: Não foi possível encontrar 'pedra.jpg'")
     else:
         # reduzir imagem para teste rapido (comentar para usar a imagem original)
-        # imgOriginal = cv2.resize(imgOriginal, (800, 600))
+        imgOriginal = cv2.resize(imgOriginal, (800, 600))
         
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
     
         experimentos = [
-            (4000, 2250, "pedra_A_panoramica_altura_reduzida.jpg"),
-            (2500, 3000, "pedra_B_squish_largura_reduzida.jpg"),
-            (4500, 3000, "pedra_C_expansao_largura_inserida.jpg")
+            (800, 300, "pedra_A_panoramica_altura_reduzida.jpg"),
+            (300, 800, "pedra_B_squish_largura_reduzida.jpg"),
+            (800, 900, "pedra_C_expansao_largura_inserida.jpg")
         ]
 
         for idx, (larguraAlvo, alturaAlvo, nome_saida) in enumerate(experimentos, 1):
