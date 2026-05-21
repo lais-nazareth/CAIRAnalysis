@@ -239,7 +239,7 @@ def seamCarvingInsertWidth(output, numInsert, transposed = False):
         cv2.waitKey(1)
         
         outputFinal = insertSeam(outputFinal, currentSeam)
-        seams = update_seams(seams, currentSeam)
+        seams = updateSeams(seams, currentSeam)
 
     return outputFinal
 
@@ -258,7 +258,7 @@ def seamCarvingInsertHeight(output, numInsert):
 
     return outputFinal
 
-def update_seams(remaining_seams, current_seam):
+def updateSeams(remaining_seams, current_seam):
         output = []
         for seam in remaining_seams:
             updatedSeam = np.copy(seam)
@@ -266,25 +266,48 @@ def update_seams(remaining_seams, current_seam):
             output.append(updatedSeam)
         return output
 
+def redimensionarImagem(img, limite=1000):
+    altura, largura = img.shape[:2]
+
+    if largura < limite and altura < limite:
+        return img.copy()
+    
+    if largura > altura:
+        fatorEscala = limite/largura
+        novaLargura = limite
+        novaAltura = int(altura * fatorEscala)
+
+    if altura > largura:
+        fatorEscala = limite/altura
+        novaAltura = limite
+        novaLargura = int(largura * fatorEscala)
+
+    imgRedimensionada = cv2.resize(img, (novaLargura, novaAltura), interpolation=cv2.INTER_AREA)
+    return imgRedimensionada
+    
+
 if __name__ == "__main__":
-    imgOriginal = cv2.imread("Seam Carving/pedra.jpg")
+    nomeImg = "monet.jpg"
+    pastaImg = "monet"
+    imgOriginal = cv2.imread(f"Seam Carving/{pastaImg}/{nomeImg}")
     
     if imgOriginal is None:
-        print("Erro: Não foi possível encontrar 'pedra.jpg'")
+        print(f"Erro: Não foi possível encontrar '{nomeImg}'")
     else:
         # reduzir imagem para teste rapido (comentar para usar a imagem original)
-        imgOriginal = cv2.resize(imgOriginal, (800, 600))
+        # imgOriginal = cv2.resize(imgOriginal, (800, 600))
         
+        imgOriginal = redimensionarImagem(imgOriginal, limite=1000)
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
     
         experimentos = [
-            (800, 300, "pedra_A_panoramica_altura_reduzida.jpg"),
-            (300, 600, "pedra_B_squish_largura_reduzida.jpg"),
-            (1100, 600, "pedra_C_expansao_largura_inserida.jpg"),
-            (800,900, "pedra_D_expansao_altura_inserida.jpg")
+            (larguraOriginal, 300, f"{nomeImg}_panoramica_altura_reduzida.jpg"),
+            (300, alturaOriginal, f"{nomeImg}squish_largura_reduzida.jpg"),
+            (1100, alturaOriginal, f"{nomeImg}_expansao_largura_inserida.jpg"),
+            (larguraOriginal ,1500, f"{nomeImg}_expansao_altura_inserida.jpg"),
         ]
 
-        for idx, (larguraAlvo, alturaAlvo, nome_saida) in enumerate(experimentos, 1):
+        for idx, (larguraAlvo, alturaAlvo, nomeSaida) in enumerate(experimentos, 1):
             print(f"\nRODANDO EXPERIMENTO {idx}...")
             output = np.copy(imgOriginal)
 
@@ -303,6 +326,8 @@ if __name__ == "__main__":
                 else:
                     output = seamCarvingInsertHeight(output, numInsert=-pixelsParaAlterarAltura)
 
-            cv2.imwrite(nome_saida, output)
-            print(f"Salvo: {nome_saida}")
+            pathSaida = f"Seam Carving/{pastaImg}/{nomeSaida}"
+
+            cv2.imwrite(pathSaida, output)
+            print(f"Salvo: {nomeSaida}")
             cv2.destroyAllWindows()
