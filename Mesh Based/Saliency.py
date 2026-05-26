@@ -107,28 +107,40 @@ def scaleInvariantSaliency(image):
 
     return saliencyMap
 
+def adaBoost(imageBGR, saliencyMap):
+    gray = cv2.cvtColor(imageBGR, cv2.COLOR_BGR2GRAY)
+    faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    
+    faces = faceCascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30,30))
 
-img = cv2.imread("Seam Carving/ellie/ellie.jpeg")
+    enhancedMap = saliencyMap.copy()
+    for (x, y, w, h) in faces:
+        enhancedMap[y:y+h, x:x+w] = enhancedMap[y:y+h, x:x+w] * 2.0
+
+    return enhancedMap
+
+img = cv2.imread("Seam Carving/braga/braga.jpeg")
 if img is None:
     print("Nao foi possivel encontrar o arquivo. Verifique o caminho!")
 else:
     print("Imagem carregada com sucesso. Iniciando pipeline...")
     
-    # Executa o algoritmo multiescala completo do artigo
     mapa_saliencia_bruto = scaleInvariantSaliency(img)
+    mapa_adaBoost = adaBoost(img, mapa_saliencia_bruto)
     
-    # Normalização Min-Max para exibir o resultado final de forma visível
-    saliency_min = np.min(mapa_saliencia_bruto)
-    saliency_max = np.max(mapa_saliencia_bruto)
+    mapa_salience_final = np.maximum(mapa_adaBoost, mapa_saliencia_bruto)
+
+    saliency_min = np.min(mapa_salience_final)
+    saliency_max = np.max(mapa_salience_final)
+
     
     if saliency_max - saliency_min != 0:
-        saliency_final = ((mapa_saliencia_bruto - saliency_min) / (saliency_max - saliency_min) * 255).astype(np.uint8)
+        saliency_final = ((mapa_salience_final - saliency_min) / (saliency_max - saliency_min) * 255).astype(np.uint8)
     else:
-        saliency_final = np.zeros_like(mapa_saliencia_bruto, dtype=np.uint8)
+        saliency_final = np.zeros_like(mapa_salience_final, dtype=np.uint8)
         
     print("Processamento concluído. Exibindo resultados.")
-    # Exibe e salva o mapa de saliência multiescala final integrado
     cv2.imshow("Mapa de Saliencia Final (Multiescala)", saliency_final)
-    cv2.imwrite("saliency_result.jpeg", saliency_final)
+    cv2.imwrite("Mesh Based/saliency_result_ada_boost.jpeg", saliency_final)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
