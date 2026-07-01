@@ -6,10 +6,7 @@ def computeEnergySobel(output):
 
     if len(output.shape) == 3:
         outputGray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
-<<<<<<< HEAD
-=======
         #print("Converter para GRAYSCALE")
->>>>>>> cc3007ec9a2a53b6018251052fe28aca3030b694
     else:
         outputGray = output
 
@@ -289,8 +286,8 @@ def redimensionarImagem(img, limite=1000):
 
 if __name__ == "__main__":
     # coloque o nome do arquivo da imagem e o diretório abaixo
-    nomeImg = "monet.jpg"
-    pastaImg = "monet"
+    nomeImg = "ellie.jpeg"
+    pastaImg = "ellie"
     imgOriginal = cv2.imread(f"Seam Carving/{pastaImg}/{nomeImg}")
     
     if imgOriginal is None:
@@ -299,14 +296,14 @@ if __name__ == "__main__":
         # reduzir imagem para teste rapido (comentar para usar a imagem original)
         # imgOriginal = cv2.resize(imgOriginal, (800, 600))
         
-        imgOriginal = redimensionarImagem(imgOriginal, limite=1000)
+        imgOriginal = redimensionarImagem(imgOriginal, limite=500)
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
     
         experimentos = [
             (larguraOriginal, 300, f"{nomeImg}_panoramica_altura_reduzida.jpg"),
-            (300, alturaOriginal, f"{nomeImg}squish_largura_reduzida.jpg"),
-            (1100, alturaOriginal, f"{nomeImg}_expansao_largura_inserida.jpg"),
-            (larguraOriginal ,1500, f"{nomeImg}_expansao_altura_inserida.jpg"),
+            (200, alturaOriginal, f"{nomeImg}squish_largura_reduzida.jpg"),
+            (400, alturaOriginal, f"{nomeImg}_expansao_largura_inserida.jpg"),
+            (larguraOriginal ,700, f"{nomeImg}_expansao_altura_inserida.jpg"),
         ]
 
         for idx, (larguraAlvo, alturaAlvo, nomeSaida) in enumerate(experimentos, 1):
