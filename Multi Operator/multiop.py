@@ -192,9 +192,11 @@ def multi_operator_regular_path(img_original, largura_alvo, altura_alvo, step_si
 
 
 if __name__ == "__main__":
+    # Alterar aqui o nome do arquivo e do diretório
     nomeImg = "ellie.jpeg"
+    nomePasta = "ellie"
     pasta_multiop = os.path.join(pasta_raiz, 'Multi Operator')
-    imgOriginal = cv2.imread(f"Multi Operator/ellie/{nomeImg}")
+    imgOriginal = cv2.imread(f"Multi Operator/{nomePasta}/{nomeImg}")
     
     if imgOriginal is None:
         print(f"Erro: Não foi possível encontrar '{nomeImg}'")
