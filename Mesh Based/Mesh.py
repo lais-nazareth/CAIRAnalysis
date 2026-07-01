@@ -272,45 +272,16 @@ if __name__ == "__main__":
         TAM_PATCH = 10
         print(f"Dimensões Alvo: {W_ALVO}x{H_ALVO} | Tamanho do Patch: {TAM_PATCH}")
         
-        # 2. Teste do Mapa de Saliência
-        print("\n=== PASSO 2: DIAGNÓSTICO DE SALIÊNCIA ===")
         mapa_saliencia = scaleInvariantSaliency(img)
-        print(f"Shape do Mapa: {mapa_saliencia.shape}")
-        print(f"Saliência - Mín: {mapa_saliencia.min()}, Máx: {mapa_saliencia.max()}, Média: {mapa_saliencia.mean()}")
         
-        # 3. Teste da Grade e Energias
-        print("\n=== PASSO 3: DIAGNÓSTICO DA GRADE ===")
         xs, ys = createMeshGrid(h_orig, w_orig, TAM_PATCH)
-        print(f"Quantidade de Vértices - X: {len(xs)}, Y: {len(ys)} (Total: {len(xs)*len(ys)})")
         
         patch_energies = calculatePatchSaliency(mapa_saliencia, xs, ys)
-        print(f"Shape da Matriz de Energias: {patch_energies.shape}")
-        print(f"Energias - Mín: {patch_energies.min()}, Máx: {patch_energies.max()}, Média: {patch_energies.mean()}")
-        
-        # 4. Teste do Sistema Linear (A e B)
-        print("\n=== PASSO 4: DIAGNÓSTICO DO OTIMIZADOR ===")
-        # Vamos rodar o otimizador e capturar internamente o que ele gera
         novos_vertices = optimizeMesh(w_orig, h_orig, W_ALVO, H_ALVO, patch_energies, TAM_PATCH)
         
-        print(f"Shape dos Vértices Otimizados: {novos_vertices.shape}")
-        print(f"Coordenadas X - Mín: {novos_vertices[:, 0].min():.2f}, Máx: {novos_vertices[:, 0].max():.2f}")
-        print(f"Coordenadas Y - Mín: {novos_vertices[:, 1].min():.2f}, Máx: {novos_vertices[:, 1].max():.2f}")
-        
-        # Print das primeiras e últimas coordenadas para checar colapso
-        print("\nAmostra dos 5 primeiros vértices (deveriam estar perto de 0,0):")
-        print(novos_vertices[:5])
-        print("\nAmostra os 5 últimos vértices (deveriam estar perto de W_ALVO, H_ALVO):")
-        print(novos_vertices[-5:])
-        
-        # 5. Mapeamento final
-        print("\n=== PASSO 5: RENDERIZAÇÃO ===")
         resultado_retarget = warpImage(img, W_ALVO, H_ALVO, TAM_PATCH, novos_vertices)
-        print(f"Shape da imagem final: {resultado_retarget.shape}")
         
-        # Contagem de pixels pretos na imagem gerada
         pixels_pretos = np.sum(resultado_retarget == 0)
         total_pixels = resultado_retarget.size
-        print(f"Porcentagem de pixels pretos na imagem: {(pixels_pretos / total_pixels) * 100:.2f}%")
         
         cv2.imwrite("mesh_result.jpeg", resultado_retarget)
-        print("Processo concluído. Arquivo 'mesh_result.jpeg' gerado.")
