@@ -8,10 +8,7 @@ def computeEnergySobel(output):
 
     if len(output.shape) == 3:
         outputGray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
-<<<<<<< HEAD
-=======
         #print("Converter para GRAYSCALE")
->>>>>>> cc3007ec9a2a53b6018251052fe28aca3030b694
     else:
         outputGray = output
 
