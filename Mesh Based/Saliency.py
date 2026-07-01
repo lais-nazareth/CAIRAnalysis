@@ -45,12 +45,16 @@ def calculateContrast(image):
 
     colunas, linhas = np.meshgrid(np.arange(largura), np.arange(altura))
 
+    
     # distancia do pixel (i,j) até o centro (vetorizado)
-    r_ijl = np.sqrt((colunas - centroX)**2 + (linhas - centroY)**2)
+    #r_ijl = np.sqrt((colunas - centroX)**2 + (linhas - centroY)**2)
 
     # matriz de pesos (para considerar heuristica de que o centro de uma imagem costuma ter mais informacao)
-    w_ijl = 1.0 - (r_ijl/r_l_max)
+    #w_ijl = 1.0 - (r_ijl/r_l_max)
+    
 
+    r_ijl = 1.0
+    w_ijl = 1.0
     # matriz para somar vizinhança
     sumDistances = np.zeros((altura, largura), dtype=float)
 
