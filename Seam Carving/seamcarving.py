@@ -288,6 +288,7 @@ def redimensionarImagem(img, limite=1000):
     
 
 if __name__ == "__main__":
+    # coloque o nome do arquivo da imagem e o diretório abaixo
     nomeImg = "monet.jpg"
     pastaImg = "monet"
     imgOriginal = cv2.imread(f"Seam Carving/{pastaImg}/{nomeImg}")
