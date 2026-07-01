@@ -257,8 +257,11 @@ if __name__ == "__main__":
     import os
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     from Saliency import scaleInvariantSaliency
-    
-    img = cv2.imread("Seam Carving/braga/braga.jpeg")
+
+    # Alterar aqui o nome do arquivo e do diretório
+    nomeImg = "braga.jpeg"
+    nomePasta = "braga"
+    img = cv2.imread(f"Seam Carving/{nomePasta}/{nomeImg}")
     if img is None:
         print("[ERRO] Não foi possível carregar a imagem. Verifique o caminho.")
     else:
