@@ -9,7 +9,7 @@ pasta_raiz = os.path.dirname(pasta_atual)
 pasta_seam_carving = os.path.join(pasta_raiz, 'Seam Carving')
 sys.path.append(pasta_seam_carving)
 #reaproveitar as funcoes do seamcarving.py
-from MySeamCarving import computeEnergySobel, computeCumulativeEnergy, backtrackSeam, removeSeam, redimensionarImagem, seamCarvingInsertWidth
+from seam_carving import computeEnergySobel, computeCumulativeEnergy, backtrackSeam, removeSeam, seamCarvingInsertWidth
 
 
 #reduzir por escala
@@ -116,17 +116,17 @@ def asymmetric_dtw_patch(img_s, img_t, y, raio):
 
 
 #bi-directional warping do artigo (versao patches)
-def calcular_bdw(img_original, img_alvo):
-    if img_original.shape == img_alvo.shape:
+def calcular_bdw(img, img_alvo):
+    if img.shape == img_alvo.shape:
         return 0.0
         
-    altura = img_original.shape[0]
+    altura = img.shape[0]
     
     # define o tamanho do patch (raio 3 = patch de 7x7 pixels)
     raio_patch = 3 
     
     # adiciona uma borda replicada para o patch nao sair da imagem
-    img_orig_pad = cv2.copyMakeBorder(img_original, raio_patch, raio_patch, raio_patch, raio_patch, cv2.BORDER_REPLICATE).astype(np.float32)
+    img_orig_pad = cv2.copyMakeBorder(img, raio_patch, raio_patch, raio_patch, raio_patch, cv2.BORDER_REPLICATE).astype(np.float32)
     img_alvo_pad = cv2.copyMakeBorder(img_alvo, raio_patch, raio_patch, raio_patch, raio_patch, cv2.BORDER_REPLICATE).astype(np.float32)
     
     max_ST = 0.0
@@ -152,7 +152,7 @@ def calcular_bdw(img_original, img_alvo):
 
 
 #calcula os melhores caminhos pra achar a imagem com melhor custo
-def otimizar_dimensao(img_original, pixels_remover, step_size=10):
+def otimizar_dimensao(img, pixels_remover, step_size=10):
     #arredonda pra multiplo do step size
     pixels_remover = (pixels_remover // step_size) * step_size
     
@@ -169,11 +169,11 @@ def otimizar_dimensao(img_original, pixels_remover, step_size=10):
         for crop_px in range(0, sobra_apos_seam + 1, step_size):
             scale_px = pixels_remover - seam_px - crop_px
             
-            img_temp = reduzir_seamcarving(img_original, seam_px)
+            img_temp = reduzir_seamcarving(img, seam_px)
             img_temp = reduzir_crop(img_temp, crop_px)
             img_temp = reduzir_escala(img_temp, scale_px)
             
-            custo = calcular_bdw(img_original, img_temp)
+            custo = calcular_bdw(img, img_temp)
             
             if custo < melhor_custo:
                 melhor_custo = custo
@@ -187,7 +187,7 @@ def otimizar_dimensao(img_original, pixels_remover, step_size=10):
 
 
 #calcula os melhores caminhos para aumentar a imagem (sem cropping)
-def otimizar_aumento_dimensao(img_original, pixels_adicionar, step_size=10):
+def otimizar_aumento_dimensao(img, pixels_adicionar, step_size=10):
     pixels_adicionar = (pixels_adicionar // step_size) * step_size
     
     melhor_custo = float('inf')
@@ -200,10 +200,10 @@ def otimizar_aumento_dimensao(img_original, pixels_adicionar, step_size=10):
     for seam_px in range(0, pixels_adicionar + 1, step_size):
         scale_px = pixels_adicionar - seam_px
         
-        img_temp = aumentar_seamcarving(img_original, seam_px)
+        img_temp = aumentar_seamcarving(img, seam_px)
         img_temp = aumentar_escala(img_temp, scale_px)
         
-        custo = calcular_bdw(img_original, img_temp)
+        custo = calcular_bdw(img, img_temp)
         
         if custo < melhor_custo:
             melhor_custo = custo
@@ -215,20 +215,20 @@ def otimizar_aumento_dimensao(img_original, pixels_adicionar, step_size=10):
 
 
 #implementacao do metodo regular path, em que a ordem das operacoes eh fixada
-def multi_operator_regular_path(img_original, largura_alvo, altura_alvo, step_size=10):
-    altura_atual, largura_atual = img_original.shape[:2]
+def multi_operator_regular_path(img, largura_alvo, altura_alvo, step_size=10):
+    altura_atual, largura_atual = img.shape[:2]
     
     #LARGURA
     diff_largura = largura_alvo - largura_atual
     
     if diff_largura < 0:
         print("Otimizando Reducao de Largura")
-        img_temp = otimizar_dimensao(img_original, abs(diff_largura), step_size)
+        img_temp = otimizar_dimensao(img, abs(diff_largura), step_size)
     elif diff_largura > 0:
         print("Otimizando Aumento de Largura")
-        img_temp = otimizar_aumento_dimensao(img_original, diff_largura, step_size)
+        img_temp = otimizar_aumento_dimensao(img, diff_largura, step_size)
     else:
-        img_temp = img_original
+        img_temp = img
 
     # ALTURA
     altura_atual = img_temp.shape[0]
@@ -251,20 +251,16 @@ def multi_operator_regular_path(img_original, largura_alvo, altura_alvo, step_si
 
     return img_final
 
-def multi_operator(image_path, target_width, target_height):
-    img_original = cv2.imread(image_path)
-    
-    if img_original is None:
-        print(f"Erro: Não foi possível encontrar '{image_path}'")
+def multi_operator(img, target_width, target_height):
+    if img is None:
+        print(f"Erro: Não foi possível encontrar '{img}'")
         return
     
-    # reduzir a imagem para os testes rodarem mais rápido
-    img_original = redimensionarImagem(img_original, limite=500)
-    largura_original, altura_original = img_original.shape[1], img_original.shape[0]
+    largura_original, altura_original = img.shape[1], img.shape[0]
     
     print(f"Imagem carregada: {largura_original}x{altura_original}")
     
-    output = multi_operator_regular_path(img_original, target_width, target_height, step_size=20)
+    output = multi_operator_regular_path(img, target_width, target_height, step_size=20)
     
     path_saida = f"Multi Operator/output/output_{target_width}x{target_height}.jpg"
     cv2.imwrite(path_saida, output)

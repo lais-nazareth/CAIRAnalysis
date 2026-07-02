@@ -1,5 +1,7 @@
 {
     "python.analysis.extraPaths": [
-        "./Seam Carving"
+        "./Seam Carving",
+        "./Mesh Based",
+        "./Multi Operator"
     ]
 }

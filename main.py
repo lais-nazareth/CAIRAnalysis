@@ -1,10 +1,12 @@
 import sys
 import os
+import cv2
+import util
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(0, os.path.join(BASE_DIR, "Seam Carving"))
-import MySeamCarving
+import seam_carving
 sys.path.pop(0)
 
 sys.path.insert(0, os.path.join(BASE_DIR, "Mesh Based"))
@@ -15,11 +17,17 @@ sys.path.insert(0, os.path.join(BASE_DIR, "Multi Operator"))
 import multiop
 sys.path.pop(0)
 
-if __name__ == "__main__":
-    image_path = "Seam Carving/pedra/pedra.jpg"
 
-    target_width = 400
-    target_height = 400
+
+if __name__ == "__main__":
+    image_path = "Seam Carving/lele/lele.jpeg"
+
+    img = cv2.imread(image_path)
+    img = util.redimensionarImagem(img)
+
+    target_width = img.shape[1]
+    target_height = 300
+
     choice = None
     while choice != -1:
         print("======= MENU DE OPÇOES =======\n"
@@ -30,9 +38,9 @@ if __name__ == "__main__":
 
         choice = input("\nDIGITE A OPÇÃO DESEJADA:\n")
         if choice == "1":
-            MySeamCarving.seam_carving(image_path, target_width, target_height)
+            seam_carving.seam_carving(img, target_width, target_height)
         elif choice == "2":
-            Mesh.mesh_based(image_path, target_width, target_height)
+            Mesh.mesh_based(img, target_width, target_height)
         elif choice == "3":
-            multiop.multi_operator(image_path, target_width, target_height)
+            multiop.multi_operator(img, target_width, target_height)
     print("Programa finalizado!")

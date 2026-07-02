@@ -253,8 +253,7 @@ def warpImage(imgOriginal, larguraT, alturaT, patchSize, novosVertices):
         
     return imgResultado
     
-def mesh_based(image_path, target_width, target_height):
-    img = cv2.imread(image_path)
+def mesh_based(img, target_width, target_height):
     if img is None:
         print("[ERRO] Não foi possível carregar a imagem. Verifique o caminho.")
     else:

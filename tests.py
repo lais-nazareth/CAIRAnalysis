@@ -6,7 +6,7 @@ import cv2
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(0, os.path.join(BASE_DIR, "Seam Carving"))
-import MySeamCarving
+import seam_carving
 sys.path.pop(0)
 
 sys.path.insert(0, os.path.join(BASE_DIR, "Mesh Based"))
@@ -74,7 +74,7 @@ if __name__ == "__main__":
             print(f"======================================")
             
             #se o step size selecionado for muito pequeno em relacao ao numero de pixels pra remover/aumentar, o codigo vai demorar MUITO
-            output = Mesh.mesh_based("Mesh Based\\pedra\\pedra.jpg", larguraAlvo, alturaAlvo)
+            output = Mesh.mesh_based(imgOriginal, larguraAlvo, alturaAlvo)
 
             
             pathSaida = f"Mesh Based/output/{nomeSaida}"

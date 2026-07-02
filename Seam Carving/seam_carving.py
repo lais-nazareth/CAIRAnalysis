@@ -264,36 +264,14 @@ def updateSeams(remaining_seams, current_seam):
             output.append(updatedSeam)
         return output
 
-def redimensionarImagem(img, limite=1000):
-    altura, largura = img.shape[:2]
-
-    if largura < limite and altura < limite:
-        return img.copy()
-    
-    if largura > altura:
-        fatorEscala = limite/largura
-        novaLargura = limite
-        novaAltura = int(altura * fatorEscala)
-
-    if altura > largura:
-        fatorEscala = limite/altura
-        novaAltura = limite
-        novaLargura = int(largura * fatorEscala)
-
-    imgRedimensionada = cv2.resize(img, (novaLargura, novaAltura), interpolation=cv2.INTER_AREA)
-    return imgRedimensionada
-    
-
-def seam_carving(pathImg, target_width, target_height):
-    imgOriginal = cv2.imread(pathImg)
+def seam_carving(imgOriginal, target_width, target_height):
     
     if imgOriginal is None:
-        print(f"Erro: Não foi possível encontrar '{pathImg}'")
+        print(f"Erro: Não foi possível encontrar '{imgOriginal}'")
     else:
         # reduzir imagem para teste rapido (comentar para usar a imagem original)
         # imgOriginal = cv2.resize(imgOriginal, (800, 600))
         
-        imgOriginal = redimensionarImagem(imgOriginal, limite=500)
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
 
         output = np.copy(imgOriginal)
