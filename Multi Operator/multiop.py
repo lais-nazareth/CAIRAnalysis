@@ -251,6 +251,24 @@ def multi_operator_regular_path(img_original, largura_alvo, altura_alvo, step_si
 
     return img_final
 
+def multi_operator(image_path, target_width, target_height):
+    img_original = cv2.imread(image_path)
+    
+    if img_original is None:
+        print(f"Erro: Não foi possível encontrar '{image_path}'")
+        return
+    
+    # reduzir a imagem para os testes rodarem mais rápido
+    img_original = redimensionarImagem(img_original, limite=500)
+    largura_original, altura_original = img_original.shape[1], img_original.shape[0]
+    
+    print(f"Imagem carregada: {largura_original}x{altura_original}")
+    
+    output = multi_operator_regular_path(img_original, target_width, target_height, step_size=20)
+    
+    path_saida = f"Multi Operator/output/output_{target_width}x{target_height}.jpg"
+    cv2.imwrite(path_saida, output)
+    print(f"Salvo: {path_saida}")
 
 if __name__ == "__main__":
     # Alterar aqui o nome do arquivo e do diretório

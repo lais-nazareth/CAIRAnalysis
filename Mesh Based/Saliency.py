@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from skimage.measure import label
 
 def gaussianFilter(image):
     imgFloat = image.astype(float)
@@ -25,7 +26,7 @@ def gaussianFilter(image):
                    v[15]*gaussianKernel[3,0] + v[16]*gaussianKernel[3,1] + v[17]*gaussianKernel[3,2]+v[18]*gaussianKernel[3,3]+v[19]*gaussianKernel[3,4]+
                    v[20]*gaussianKernel[4,0] + v[21]*gaussianKernel[4,1] + v[22]*gaussianKernel[4,2]+v[23]*gaussianKernel[4,3]+v[24]*gaussianKernel[4,4])
     
-    imgGaussian = np.clip(imgGaussian, 0, 255).astype(np.uint8)
+    # imgGaussian = np.clip(imgGaussian, 0, 255).astype(np.uint8)
 
     return imgGaussian
 
@@ -47,14 +48,14 @@ def calculateContrast(image):
 
     
     # distancia do pixel (i,j) até o centro (vetorizado)
-    #r_ijl = np.sqrt((colunas - centroX)**2 + (linhas - centroY)**2)
+    r_ijl = np.sqrt((colunas - centroX)**2 + (linhas - centroY)**2)
 
     # matriz de pesos (para considerar heuristica de que o centro de uma imagem costuma ter mais informacao)
-    #w_ijl = 1.0 - (r_ijl/r_l_max)
+    w_ijl = 1.0 - (r_ijl/r_l_max)
     
 
-    r_ijl = 1.0
-    w_ijl = 1.0
+    #r_ijl = 1.0
+    #w_ijl = 1.0
     # matriz para somar vizinhança
     sumDistances = np.zeros((altura, largura), dtype=float)
 
@@ -111,7 +112,33 @@ def scaleInvariantSaliency(image):
 
     return saliencyMap
 
+
+def segmentRegions(imageBGR, spatialRadius=120, colorRadius = 125):
+    segmented = cv2.pyrMeanShiftFiltering(imageBGR, spatialRadius, colorRadius)
+    altura, largura = segmented.shape[:2]
+    cores, coresIdx = np.unique(segmented.reshape(-1, 3), axis=0, return_inverse=True)
+    mapaCores = coresIdx.reshape(altura, largura)
+    labels = label(mapaCores, background=-1, connectivity=2)
+
+    return labels, segmented
+
+
+def regionEnhancedSaliency(saliencyMap, labels):
+    altura, largura = saliencyMap.shape
+    numRegioes = np.max(labels) + 1
+
+    labelsAchatados = labels.ravel()
+    saliencyAchatada = saliencyMap.ravel()
+
+    somaPorLabel = np.bincount(labelsAchatados, weights=saliencyAchatada)
+    contagemPorLabel = np.bincount(labelsAchatados)
+    mediaPorLabel = somaPorLabel / np.maximum(contagemPorLabel, 1)
+
+    enhanced = mediaPorLabel[labelsAchatados].reshape(altura, largura)
+    return enhanced
+
 def adaBoost(imageBGR, saliencyMap):
+    
     gray = cv2.cvtColor(imageBGR, cv2.COLOR_BGR2GRAY)
     faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     
@@ -122,6 +149,7 @@ def adaBoost(imageBGR, saliencyMap):
         enhancedMap[y:y+h, x:x+w] = enhancedMap[y:y+h, x:x+w] * 2.0
 
     return enhancedMap
+    
 
 def saliency_pipeline(img):
     if img is None:
@@ -135,6 +163,10 @@ def saliency_pipeline(img):
         
         mapa_salience_final = np.maximum(mapa_adaBoost, mapa_saliencia_bruto)
 
+        # labels, segmented = segmentRegions(img)
+        # mapa_salience_final = regionEnhancedSaliency(mapa_salience_final, labels)
+        
+
         saliency_min = np.min(mapa_salience_final)
         saliency_max = np.max(mapa_salience_final)
 
@@ -144,5 +176,7 @@ def saliency_pipeline(img):
         else:
             saliency_final = np.zeros_like(mapa_salience_final, dtype=np.uint8)
 
+        cv2.imwrite("Mesh Based/output/saliency_result_segmented.jpeg", mapa_salience_final)
+        # cv2.imwrite("Mesh Based/output/segmentation.jpeg", segmented)
         cv2.imwrite("Mesh Based/output/saliency_result_ada_boost.jpeg", saliency_final)
-        return saliency_final
+        return mapa_salience_final
