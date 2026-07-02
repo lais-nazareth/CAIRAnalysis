@@ -74,86 +74,78 @@ def aumentar_seamcarving(image, num_pixels):
     return nova_imagem
 
 
-#calcula a distancia entre um bloco de pixels
-def calc_patch_dist(img_s, img_t, y, x_s, x_t, raio):
-    dist = 0.0
-    # percorre o quadrado ao redor do pixel
-    for dy in range(-raio, raio + 1):
-        for dx in range(-raio, raio + 1):
-            for c in range(3):
-                val_s = img_s[y + dy, x_s + dx, c]
-                val_t = img_t[y + dy, x_t + dx, c]
-                dist += abs(val_s - val_t)
-    return dist
 
+# METODOLOGIA DO ARTIGO (DONG ET AL. 2012)
+# Substitui o (MUITO) LENTO A-DTW de Rubinstein por Energia + Cores Dominantes (DCD)
 
-def asymmetric_dtw_patch(img_s, img_t, y, raio):
-    # desconta a borda artificial para saber o tamanho real do loop
-    len_s = img_s.shape[1] - (2 * raio)
-    len_t = img_t.shape[1] - (2 * raio)
+# extrai o dominant color descriptor usando clustering k-means
+def extrair_dcd(imagem, k=8):
+    # reduz a imagem drasticamente para rodar o k-means muito rapido
+    img_reduzida = cv2.resize(imagem, (100, 100))
+    pixels = np.float32(img_reduzida.reshape(-1, 3))
     
-    # matriz de prog dinamica com valores infinitos
-    M = np.full((len_s + 1, len_t + 1), np.inf)
+    # executa o k-means do OpenCV para achar as K cores principais
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, centers = cv2.kmeans(pixels, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
     
-    M[0, 0] = 0
-    M[0, 1:] = 0
+    # calcula a porcentagem (peso) de cada cor na imagem
+    counts = np.bincount(labels.flatten())
+    porcentagens = counts / float(counts.sum())
     
-    # laço principal do A-DTW
-    for i in range(1, len_s + 1):
-        for j in range(1, len_t + 1):
-            px_s = i - 1 + raio
-            px_t = j - 1 + raio
-            
-            d = calc_patch_dist(img_s, img_t, y, px_s, px_t, raio)
-            
-            M[i, j] = min(
-                M[i-1, j-1] + d,
-                M[i, j-1],
-                M[i-1, j] + d
-            )
-            
-    return M[len_s, len_t]
+    return centers, porcentagens
 
 
-#bi-directional warping do artigo (versao patches)
-def calcular_bdw(img, img_alvo):
-    if img.shape == img_alvo.shape:
+# calcula a perda de informacao visual baseada na cor e seu peso
+def calcular_diferenca_dcd(dcd1, dcd2):
+    centers1, perc1 = dcd1
+    centers2, perc2 = dcd2
+    
+    # ordena os clusters do maior pro menor pra comparar de forma justa
+    idx1 = np.argsort(perc1)[::-1]
+    idx2 = np.argsort(perc2)[::-1]
+    
+    diferenca = 0.0
+    for i, j in zip(idx1, idx2):
+        # penaliza se a cor mudou ou se a quantidade daquela cor na foto mudou
+        dist_cor = np.linalg.norm(centers1[i] - centers2[j])
+        dist_perc = abs(perc1[i] - perc2[j])
+        diferenca += (dist_cor + (dist_perc * 255.0))
+        
+    return diferenca
+
+
+# avaliacao unificada do artigo: Energia + DCD
+def calcular_custo(img_original, img_alvo):
+    if img_original.shape == img_alvo.shape:
         return 0.0
         
-    altura = img.shape[0]
+    # Energia de Sobel (local)
+    # se o seam carving deformar demais, cria picos de energia
+    # se o scale borrar demais, derruba a media da energia
+    energia_orig = computeEnergySobel(img_original)
+    energia_alvo = computeEnergySobel(img_alvo)
     
-    # define o tamanho do patch (raio 3 = patch de 7x7 pixels)
-    raio_patch = 3 
+    diff_energia_media = abs(np.mean(energia_orig) - np.mean(energia_alvo))
+    diff_energia_max = abs(np.max(energia_orig) - np.max(energia_alvo))
+    custo_energia = diff_energia_media + diff_energia_max
     
-    # adiciona uma borda replicada para o patch nao sair da imagem
-    img_orig_pad = cv2.copyMakeBorder(img, raio_patch, raio_patch, raio_patch, raio_patch, cv2.BORDER_REPLICATE).astype(np.float32)
-    img_alvo_pad = cv2.copyMakeBorder(img_alvo, raio_patch, raio_patch, raio_patch, raio_patch, cv2.BORDER_REPLICATE).astype(np.float32)
+    # DCD (global)
+    # ex: ajuda o algoritmo a nao comer todo o azul do ceu (preservar a composicao)
+    dcd_orig = extrair_dcd(img_original)
+    dcd_alvo = extrair_dcd(img_alvo)
+    custo_dcd = calcular_diferenca_dcd(dcd_orig, dcd_alvo)
     
-    max_ST = 0.0
-    max_TS = 0.0
+    # o artigo aplica o peso omega_dcd (0.2 a 0.5) para misturar as metricas
+    custo_final = custo_energia + (custo_dcd * 0.2)
     
-    for i in range(altura):
-        # a coordenada Y real na imagem com padding é i + raio_patch
-        y_real = i + raio_patch
-        
-        # erro original -> alvo
-        erro_st = asymmetric_dtw_patch(img_orig_pad, img_alvo_pad, y_real, raio_patch)
-        if erro_st > max_ST:
-            max_ST = erro_st
-            
-        # erro alvo -> original
-        erro_ts = asymmetric_dtw_patch(img_alvo_pad, img_orig_pad, y_real, raio_patch)
-        if erro_ts > max_TS:
-            max_TS = erro_ts
-            
-    #custo final eh a soma dos 2 erros
-    custo_final = max_ST + max_TS
     return custo_final
 
 
 #calcula os melhores caminhos pra achar a imagem com melhor custo
 def otimizar_dimensao(img, pixels_remover, step_size=10):
     #arredonda pra multiplo do step size
+    if 0 < pixels_remover < step_size:
+        step_size = pixels_remover
     pixels_remover = (pixels_remover // step_size) * step_size
     
     #inicializa
@@ -173,7 +165,7 @@ def otimizar_dimensao(img, pixels_remover, step_size=10):
             img_temp = reduzir_crop(img_temp, crop_px)
             img_temp = reduzir_escala(img_temp, scale_px)
             
-            custo = calcular_bdw(img, img_temp)
+            custo = calcular_custo(img, img_temp)
             
             if custo < melhor_custo:
                 melhor_custo = custo
@@ -184,10 +176,10 @@ def otimizar_dimensao(img, pixels_remover, step_size=10):
     return melhor_imagem
 
 
-
-
 #calcula os melhores caminhos para aumentar a imagem (sem cropping)
 def otimizar_aumento_dimensao(img, pixels_adicionar, step_size=10):
+    if 0 < pixels_adicionar < step_size:
+        step_size = pixels_adicionar
     pixels_adicionar = (pixels_adicionar // step_size) * step_size
     
     melhor_custo = float('inf')
@@ -203,7 +195,7 @@ def otimizar_aumento_dimensao(img, pixels_adicionar, step_size=10):
         img_temp = aumentar_seamcarving(img, seam_px)
         img_temp = aumentar_escala(img_temp, scale_px)
         
-        custo = calcular_bdw(img, img_temp)
+        custo = calcular_custo(img, img_temp)
         
         if custo < melhor_custo:
             melhor_custo = custo
@@ -251,67 +243,31 @@ def multi_operator_regular_path(img, largura_alvo, altura_alvo, step_size=10):
 
     return img_final
 
-def multi_operator(img, target_width, target_height):
-    if img is None:
-        print(f"Erro: Não foi possível encontrar '{img}'")
-        return
-    
-    largura_original, altura_original = img.shape[1], img.shape[0]
-    
-    print(f"Imagem carregada: {largura_original}x{altura_original}")
-    
-    output = multi_operator_regular_path(img, target_width, target_height, step_size=20)
-    
-    path_saida = f"Multi Operator/output/output_{target_width}x{target_height}.jpg"
-    cv2.imwrite(path_saida, output)
-    print(f"Salvo: {path_saida}")
-
-if __name__ == "__main__":
-    # Alterar aqui o nome do arquivo e do diretório
-    nomeImg = "ellie.jpeg"
-    nomePasta = "ellie"
-    pasta_multiop = os.path.join(pasta_raiz, 'Multi Operator')
-    imgOriginal = cv2.imread(f"Multi Operator/{nomePasta}/{nomeImg}")
+def multi_operator(imgOriginal, target_width, target_height):
     
     if imgOriginal is None:
-        print(f"Erro: Não foi possível encontrar '{nomeImg}'")
+        print("Erro: A imagem fornecida é nula.")
+        return
+    
+    larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
+    
+    print(f"Imagem carregada: {larguraOriginal}x{alturaOriginal}")
+    print(f"Iniciando Multi-Operator para redimensionar para {target_width}x{target_height}...")
+    
+    # Executa o algoritmo com step_size de 20 (bom equilíbrio entre velocidade e qualidade)
+    output = multi_operator_regular_path(imgOriginal, target_width, target_height, step_size=10)
+
+    # Cria a pasta de saída seguindo o padrão do projeto
+    pasta_destino = "Multi Operator/output"
+    os.makedirs(pasta_destino, exist_ok=True)
+    
+    # Nome do ficheiro igual ao do seam carving
+    pathSaida = f"{pasta_destino}/output_{target_width}x{target_height}.jpg"
+    
+    # Guarda e confirma
+    sucesso = cv2.imwrite(pathSaida, output)
+    
+    if sucesso:
+        print(f"Salvo: {pathSaida}")
     else:
-        # reduzir a imagem para os testes rodarem mais rápido
-        imgOriginal = redimensionarImagem(imgOriginal, limite=500)
-        larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
-        
-        print(f"Imagem carregada: {larguraOriginal}x{alturaOriginal}")
-
-        experimentos = [
-            # reduzir 100 pixels de largura
-            (larguraOriginal - 100, alturaOriginal, f"{nomeImg}_reduz_largura.jpg"),
-
-            # reduzir 100 pixels de altura
-            (larguraOriginal, alturaOriginal - 100, f"{nomeImg}_reduz_altura.jpg"),
-
-            # expandir 50% da largura
-            (int(larguraOriginal * 1.5), alturaOriginal, f"{nomeImg}_expande_largura.jpg"),
-
-            # expandir 50% da altura
-            (larguraOriginal, int(alturaOriginal * 1.5), f"{nomeImg}_expande_altura.jpg"),
-            
-            # reduz a largura por 50px e aumenta a altura por 30%
-            (larguraOriginal - 50, int(alturaOriginal * 1.3), f"{nomeImg}_misto.jpg")
-        ]
-
-        # criar a pasta de saída do MultiOp se não existir
-        pasta_saida = os.path.join(pasta_atual, "output")
-        os.makedirs(pasta_saida, exist_ok=True)
-
-        for idx, (larguraAlvo, alturaAlvo, nomeSaida) in enumerate(experimentos, 1):
-            print(f"\n======================================")
-            print(f"RODANDO EXPERIMENTO {idx} (Alvo: {larguraAlvo}x{alturaAlvo})")
-            print(f"======================================")
-            
-            #se o step size selecionado for muito pequeno em relacao ao numero de pixels pra remover/aumentar, o codigo vai demorar MUITO
-            output = multi_operator_regular_path(imgOriginal, larguraAlvo, alturaAlvo, step_size=20)
-
-            
-            pathSaida = f"Multi Operator/output/{nomeSaida}"
-            cv2.imwrite(pathSaida, output)
-            print(f"\n[!] Salvo: {pathSaida}")
+        print(f"Erro ao tentar salvar: {pathSaida}")

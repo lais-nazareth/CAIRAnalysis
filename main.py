@@ -23,10 +23,11 @@ if __name__ == "__main__":
     image_path = "Seam Carving/lele/lele.jpeg"
 
     img = cv2.imread(image_path)
-    img = util.redimensionarImagem(img)
+    img = util.redimensionarImagem(img, limite=1000)
 
-    target_width = img.shape[1]
-    target_height = 300
+
+    target_width = int(img.shape[1])
+    target_height = int(img.shape[0] + 100)
 
     choice = None
     while choice != -1:
