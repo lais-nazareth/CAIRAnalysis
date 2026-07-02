@@ -23,16 +23,12 @@ def reduzir_escala(image,num_pixels):
     
     return nova_imagem
 
-#TODO implementar a do artigo
+
 #reduzir por cropping
 def reduzir_crop(image, num_pixels):
     if num_pixels == 0:
         return image
     
-    # V1 simples: Cortando tudo do lado direito
-    # nova_imagem = image[:, :-num_pixels]
-    
-    # V2 mais equilibrada: Cortando um pouco de cada lado
     corte_esq = num_pixels // 2
     corte_dir = num_pixels - corte_esq
     
@@ -77,19 +73,82 @@ def aumentar_seamcarving(image, num_pixels):
     nova_imagem = seamCarvingInsertWidth(image, num_pixels)
     return nova_imagem
 
-# ==========================================
 
-#TODO funcao dummy, trocar pelo BDW
-def calcular_custo_teste(img_original, img_alvo):
-    """
-    Função DUMMY. 
-    Retorna um custo falso (diferença de cor média) para o loop poder rodar.
-    Depois trocaremos pelo Asymmetric-DTW.
-    """
+#calcula a distancia entre um bloco de pixels
+def calc_patch_dist(img_s, img_t, y, x_s, x_t, raio):
+    dist = 0.0
+    # percorre o quadrado ao redor do pixel
+    for dy in range(-raio, raio + 1):
+        for dx in range(-raio, raio + 1):
+            for c in range(3):
+                val_s = img_s[y + dy, x_s + dx, c]
+                val_t = img_t[y + dy, x_t + dx, c]
+                dist += abs(val_s - val_t)
+    return dist
+
+
+def asymmetric_dtw_patch(img_s, img_t, y, raio):
+    # desconta a borda artificial para saber o tamanho real do loop
+    len_s = img_s.shape[1] - (2 * raio)
+    len_t = img_t.shape[1] - (2 * raio)
+    
+    # matriz de prog dinamica com valores infinitos
+    M = np.full((len_s + 1, len_t + 1), np.inf)
+    
+    M[0, 0] = 0
+    M[0, 1:] = 0
+    
+    # laço principal do A-DTW
+    for i in range(1, len_s + 1):
+        for j in range(1, len_t + 1):
+            px_s = i - 1 + raio
+            px_t = j - 1 + raio
+            
+            d = calc_patch_dist(img_s, img_t, y, px_s, px_t, raio)
+            
+            M[i, j] = min(
+                M[i-1, j-1] + d,
+                M[i, j-1],
+                M[i-1, j] + d
+            )
+            
+    return M[len_s, len_t]
+
+
+#bi-directional warping do artigo (versao patches)
+def calcular_bdw(img_original, img_alvo):
     if img_original.shape == img_alvo.shape:
-        return 0
-    # Custo falso baseado na média de cor da imagem
-    return abs(np.mean(img_original) - np.mean(img_alvo))
+        return 0.0
+        
+    altura = img_original.shape[0]
+    
+    # define o tamanho do patch (raio 3 = patch de 7x7 pixels)
+    raio_patch = 3 
+    
+    # adiciona uma borda replicada para o patch nao sair da imagem
+    img_orig_pad = cv2.copyMakeBorder(img_original, raio_patch, raio_patch, raio_patch, raio_patch, cv2.BORDER_REPLICATE).astype(np.float32)
+    img_alvo_pad = cv2.copyMakeBorder(img_alvo, raio_patch, raio_patch, raio_patch, raio_patch, cv2.BORDER_REPLICATE).astype(np.float32)
+    
+    max_ST = 0.0
+    max_TS = 0.0
+    
+    for i in range(altura):
+        # a coordenada Y real na imagem com padding é i + raio_patch
+        y_real = i + raio_patch
+        
+        # erro original -> alvo
+        erro_st = asymmetric_dtw_patch(img_orig_pad, img_alvo_pad, y_real, raio_patch)
+        if erro_st > max_ST:
+            max_ST = erro_st
+            
+        # erro alvo -> original
+        erro_ts = asymmetric_dtw_patch(img_alvo_pad, img_orig_pad, y_real, raio_patch)
+        if erro_ts > max_TS:
+            max_TS = erro_ts
+            
+    #custo final eh a soma dos 2 erros
+    custo_final = max_ST + max_TS
+    return custo_final
 
 
 #calcula os melhores caminhos pra achar a imagem com melhor custo
@@ -114,7 +173,7 @@ def otimizar_dimensao(img_original, pixels_remover, step_size=10):
             img_temp = reduzir_crop(img_temp, crop_px)
             img_temp = reduzir_escala(img_temp, scale_px)
             
-            custo = calcular_custo_teste(img_original, img_temp)
+            custo = calcular_bdw(img_original, img_temp)
             
             if custo < melhor_custo:
                 melhor_custo = custo
@@ -123,6 +182,8 @@ def otimizar_dimensao(img_original, pixels_remover, step_size=10):
 
     print(f"Vencedor: Seam={melhor_caminho[0]}px, Crop={melhor_caminho[1]}px, Scale={melhor_caminho[2]}px | Custo: {melhor_custo:.2f}")
     return melhor_imagem
+
+
 
 
 #calcula os melhores caminhos para aumentar a imagem (sem cropping)
@@ -142,7 +203,7 @@ def otimizar_aumento_dimensao(img_original, pixels_adicionar, step_size=10):
         img_temp = aumentar_seamcarving(img_original, seam_px)
         img_temp = aumentar_escala(img_temp, scale_px)
         
-        custo = calcular_custo_teste(img_original, img_temp)
+        custo = calcular_bdw(img_original, img_temp)
         
         if custo < melhor_custo:
             melhor_custo = custo
@@ -201,20 +262,30 @@ if __name__ == "__main__":
     if imgOriginal is None:
         print(f"Erro: Não foi possível encontrar '{nomeImg}'")
     else:
-        # Reduzir a imagem para os testes rodarem mais rápido
+        # reduzir a imagem para os testes rodarem mais rápido
         imgOriginal = redimensionarImagem(imgOriginal, limite=500)
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
         
         print(f"Imagem carregada: {larguraOriginal}x{alturaOriginal}")
 
         experimentos = [
-            (larguraOriginal, 300, f"{nomeImg}_panoramica_altura_reduzida.jpg"),
-            (200, alturaOriginal, f"{nomeImg}squish_largura_reduzida.jpg"),
-            (400, alturaOriginal, f"{nomeImg}_expansao_largura_inserida.jpg"),
-            (larguraOriginal ,700, f"{nomeImg}_expansao_altura_inserida.jpg"),
+            # reduzir 100 pixels de largura
+            (larguraOriginal - 100, alturaOriginal, f"{nomeImg}_reduz_largura.jpg"),
+
+            # reduzir 100 pixels de altura
+            (larguraOriginal, alturaOriginal - 100, f"{nomeImg}_reduz_altura.jpg"),
+
+            # expandir 50% da largura
+            (int(larguraOriginal * 1.5), alturaOriginal, f"{nomeImg}_expande_largura.jpg"),
+
+            # expandir 50% da altura
+            (larguraOriginal, int(alturaOriginal * 1.5), f"{nomeImg}_expande_altura.jpg"),
+            
+            # reduz a largura por 50px e aumenta a altura por 30%
+            (larguraOriginal - 50, int(alturaOriginal * 1.3), f"{nomeImg}_misto.jpg")
         ]
 
-        # Criar a pasta de saída do MultiOp se não existir
+        # criar a pasta de saída do MultiOp se não existir
         pasta_saida = os.path.join(pasta_atual, "output")
         os.makedirs(pasta_saida, exist_ok=True)
 
@@ -224,7 +295,7 @@ if __name__ == "__main__":
             print(f"======================================")
             
             #se o step size selecionado for muito pequeno em relacao ao numero de pixels pra remover/aumentar, o codigo vai demorar MUITO
-            output = multi_operator_regular_path(imgOriginal, larguraAlvo, alturaAlvo, step_size=50)
+            output = multi_operator_regular_path(imgOriginal, larguraAlvo, alturaAlvo, step_size=20)
 
             
             pathSaida = f"Multi Operator/output/{nomeSaida}"
