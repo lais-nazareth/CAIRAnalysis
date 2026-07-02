@@ -286,8 +286,8 @@ def redimensionarImagem(img, limite=1000):
 
 if __name__ == "__main__":
     # coloque o nome do arquivo da imagem e o diretório abaixo
-    nomeImg = "ellie.jpeg"
-    pastaImg = "ellie"
+    nomeImg = "pedra.jpg"
+    pastaImg = "pedra"
     imgOriginal = cv2.imread(f"Seam Carving/{pastaImg}/{nomeImg}")
     
     if imgOriginal is None:
@@ -300,10 +300,20 @@ if __name__ == "__main__":
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
     
         experimentos = [
-            (larguraOriginal, 300, f"{nomeImg}_panoramica_altura_reduzida.jpg"),
-            (200, alturaOriginal, f"{nomeImg}squish_largura_reduzida.jpg"),
-            (400, alturaOriginal, f"{nomeImg}_expansao_largura_inserida.jpg"),
-            (larguraOriginal ,700, f"{nomeImg}_expansao_altura_inserida.jpg"),
+            # reduzir 100 pixels de largura
+            (larguraOriginal - 100, alturaOriginal, f"{nomeImg}_reduz_largura.jpg"),
+
+            # reduzir 100 pixels de altura
+            (larguraOriginal, alturaOriginal - 100, f"{nomeImg}_reduz_altura.jpg"),
+
+            # expandir 50% da largura
+            (int(larguraOriginal * 1.5), alturaOriginal, f"{nomeImg}_expande_largura.jpg"),
+
+            # expandir 50% da altura
+            (larguraOriginal, int(alturaOriginal * 1.5), f"{nomeImg}_expande_altura.jpg"),
+            
+            # reduz a largura por 50px e aumenta a altura por 30%
+            (larguraOriginal - 50, int(alturaOriginal * 1.3), f"{nomeImg}_misto.jpg")
         ]
 
         for idx, (larguraAlvo, alturaAlvo, nomeSaida) in enumerate(experimentos, 1):
