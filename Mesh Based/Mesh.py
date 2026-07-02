@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 from scipy.sparse import lil_matrix
-import scipy.sparse.linalg as splinalg
+import scipy.sparse.linalg as splinal
+import Saliency
 
 def createMeshGrid(alturaO, larguraO, patch_size=32):
     xs = np.arange(0, larguraO + 1, patch_size)
@@ -194,7 +195,7 @@ def optimizeMesh(larguraO, alturaO, larguraT, alturaT, patchEnergies, patchSize)
     B = np.array(B, dtype=float)
     A_csr = A.tocsr()
 
-    solucaoLinear = splinalg.lsqr(A_csr, B)[0]
+    solucaoLinear = splinal.lsqr(A_csr, B)[0]
 
     novosVertices = solucaoLinear.reshape((totalVertices, 2))
 
@@ -252,13 +253,8 @@ def warpImage(imgOriginal, larguraT, alturaT, patchSize, novosVertices):
         
     return imgResultado
     
-if __name__ == "__main__":
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from Saliency import scaleInvariantSaliency
-    
-    img = cv2.imread("Seam Carving/braga/braga.jpeg")
+def mesh_based(image_path, target_width, target_height):
+    img = cv2.imread(image_path)
     if img is None:
         print("[ERRO] Não foi possível carregar a imagem. Verifique o caminho.")
     else:
@@ -266,13 +262,12 @@ if __name__ == "__main__":
         print(f"=== PASSO 1: IMAGEM CARREGADA ===")
         print(f"Dimensões Originais: {w_orig}x{h_orig}")
         
-        # Resoluções para o teste de debug
-        W_ALVO = 1400
-        H_ALVO = h_orig
+        W_ALVO = target_width
+        H_ALVO = target_height
         TAM_PATCH = 10
         print(f"Dimensões Alvo: {W_ALVO}x{H_ALVO} | Tamanho do Patch: {TAM_PATCH}")
         
-        mapa_saliencia = scaleInvariantSaliency(img)
+        mapa_saliencia = Saliency.saliency_pipeline(img)
         
         xs, ys = createMeshGrid(h_orig, w_orig, TAM_PATCH)
         
@@ -284,4 +279,4 @@ if __name__ == "__main__":
         pixels_pretos = np.sum(resultado_retarget == 0)
         total_pixels = resultado_retarget.size
         
-        cv2.imwrite("mesh_result.jpeg", resultado_retarget)
+        cv2.imwrite("Mesh Based/output/mesh_result.jpeg", resultado_retarget)

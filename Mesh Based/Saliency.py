@@ -123,28 +123,26 @@ def adaBoost(imageBGR, saliencyMap):
 
     return enhancedMap
 
-img = cv2.imread("Seam Carving/braga/braga.jpeg")
-if img is None:
-    print("Nao foi possivel encontrar o arquivo. Verifique o caminho!")
-else:
-    print("Imagem carregada com sucesso. Iniciando pipeline...")
-    
-    mapa_saliencia_bruto = scaleInvariantSaliency(img)
-    mapa_adaBoost = adaBoost(img, mapa_saliencia_bruto)
-    
-    mapa_salience_final = np.maximum(mapa_adaBoost, mapa_saliencia_bruto)
-
-    saliency_min = np.min(mapa_salience_final)
-    saliency_max = np.max(mapa_salience_final)
-
-    
-    if saliency_max - saliency_min != 0:
-        saliency_final = ((mapa_salience_final - saliency_min) / (saliency_max - saliency_min) * 255).astype(np.uint8)
+def saliency_pipeline(img):
+    if img is None:
+        print("Não foi possível encontrar o arquivo. Verifique o caminho!")
+        return None
     else:
-        saliency_final = np.zeros_like(mapa_salience_final, dtype=np.uint8)
+        print("Imagem carregada com sucesso. Iniciando pipeline...")
         
-    print("Processamento concluído. Exibindo resultados.")
-    cv2.imshow("Mapa de Saliencia Final (Multiescala)", saliency_final)
-    cv2.imwrite("Mesh Based/saliency_result_ada_boost.jpeg", saliency_final)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        mapa_saliencia_bruto = scaleInvariantSaliency(img)
+        mapa_adaBoost = adaBoost(img, mapa_saliencia_bruto)
+        
+        mapa_salience_final = np.maximum(mapa_adaBoost, mapa_saliencia_bruto)
+
+        saliency_min = np.min(mapa_salience_final)
+        saliency_max = np.max(mapa_salience_final)
+
+        
+        if saliency_max - saliency_min != 0:
+            saliency_final = ((mapa_salience_final - saliency_min) / (saliency_max - saliency_min) * 255).astype(np.uint8)
+        else:
+            saliency_final = np.zeros_like(mapa_salience_final, dtype=np.uint8)
+
+        cv2.imwrite("Mesh Based/output/saliency_result_ada_boost.jpeg", saliency_final)
+        return saliency_final

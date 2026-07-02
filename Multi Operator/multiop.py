@@ -9,7 +9,7 @@ pasta_raiz = os.path.dirname(pasta_atual)
 pasta_seam_carving = os.path.join(pasta_raiz, 'Seam Carving')
 sys.path.append(pasta_seam_carving)
 #reaproveitar as funcoes do seamcarving.py
-from seamcarving import computeEnergySobel, computeCumulativeEnergy, backtrackSeam, removeSeam, redimensionarImagem, seamCarvingInsertWidth
+from MySeamCarving import computeEnergySobel, computeCumulativeEnergy, backtrackSeam, removeSeam, redimensionarImagem, seamCarvingInsertWidth
 
 
 #reduzir por escala

@@ -284,49 +284,37 @@ def redimensionarImagem(img, limite=1000):
     return imgRedimensionada
     
 
-if __name__ == "__main__":
-    # coloque o nome do arquivo da imagem e o diretório abaixo
-    nomeImg = "ellie.jpeg"
-    pastaImg = "ellie"
-    imgOriginal = cv2.imread(f"Seam Carving/{pastaImg}/{nomeImg}")
+def seam_carving(pathImg, target_width, target_height):
+    imgOriginal = cv2.imread(pathImg)
     
     if imgOriginal is None:
-        print(f"Erro: Não foi possível encontrar '{nomeImg}'")
+        print(f"Erro: Não foi possível encontrar '{pathImg}'")
     else:
         # reduzir imagem para teste rapido (comentar para usar a imagem original)
         # imgOriginal = cv2.resize(imgOriginal, (800, 600))
         
         imgOriginal = redimensionarImagem(imgOriginal, limite=500)
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
-    
-        experimentos = [
-            (larguraOriginal, 300, f"{nomeImg}_panoramica_altura_reduzida.jpg"),
-            (200, alturaOriginal, f"{nomeImg}squish_largura_reduzida.jpg"),
-            (400, alturaOriginal, f"{nomeImg}_expansao_largura_inserida.jpg"),
-            (larguraOriginal ,700, f"{nomeImg}_expansao_altura_inserida.jpg"),
-        ]
 
-        for idx, (larguraAlvo, alturaAlvo, nomeSaida) in enumerate(experimentos, 1):
-            print(f"\nRODANDO EXPERIMENTO {idx}...")
-            output = np.copy(imgOriginal)
+        output = np.copy(imgOriginal)
 
-            pixelsParaAlterarLargura = larguraOriginal - larguraAlvo
-            pixelsParaAlterarAltura = alturaOriginal - alturaAlvo
+        pixelsParaAlterarLargura = larguraOriginal - target_width
+        pixelsParaAlterarAltura = alturaOriginal - target_height
 
-            if pixelsParaAlterarLargura != 0:
-                if pixelsParaAlterarLargura > 0:
-                    output = seamCarvingRemovalWidth(output, numRemove=pixelsParaAlterarLargura)
-                else:
-                    output = seamCarvingInsertWidth(output, numInsert=-pixelsParaAlterarLargura)
-            
-            if pixelsParaAlterarAltura != 0:
-                if pixelsParaAlterarAltura > 0:
-                    output = seamCarvingRemovalHeight(output, numRemove=pixelsParaAlterarAltura)
-                else:
-                    output = seamCarvingInsertHeight(output, numInsert=-pixelsParaAlterarAltura)
+        if pixelsParaAlterarLargura != 0:
+            if pixelsParaAlterarLargura > 0:
+                output = seamCarvingRemovalWidth(output, numRemove=pixelsParaAlterarLargura)
+            else:
+                output = seamCarvingInsertWidth(output, numInsert=-pixelsParaAlterarLargura)
+        
+        if pixelsParaAlterarAltura != 0:
+            if pixelsParaAlterarAltura > 0:
+                output = seamCarvingRemovalHeight(output, numRemove=pixelsParaAlterarAltura)
+            else:
+                output = seamCarvingInsertHeight(output, numInsert=-pixelsParaAlterarAltura)
 
-            pathSaida = f"Seam Carving/{pastaImg}/{nomeSaida}"
+        pathSaida = f"Seam Carving/output/output_{target_width}x{target_height}.jpg"
 
-            cv2.imwrite(pathSaida, output)
-            print(f"Salvo: {nomeSaida}")
-            cv2.destroyAllWindows()
+        cv2.imwrite(pathSaida, output)
+        print(f"Salvo: {pathSaida}")
+        cv2.destroyAllWindows()
