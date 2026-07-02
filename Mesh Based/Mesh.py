@@ -253,8 +253,21 @@ def warpImage(imgOriginal, larguraT, alturaT, patchSize, novosVertices):
         
     return imgResultado
     
+<<<<<<< HEAD
 def mesh_based(image_path, target_width, target_height):
     img = cv2.imread(image_path)
+=======
+if __name__ == "__main__":
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from Saliency import scaleInvariantSaliency
+
+    # Alterar aqui o nome do arquivo e do diretório
+    nomeImg = "braga.jpeg"
+    nomePasta = "braga"
+    img = cv2.imread(f"Seam Carving/{nomePasta}/{nomeImg}")
+>>>>>>> 8266414fd4b86a19b1a89fafbac84d0a339d480d
     if img is None:
         print("[ERRO] Não foi possível carregar a imagem. Verifique o caminho.")
     else:
