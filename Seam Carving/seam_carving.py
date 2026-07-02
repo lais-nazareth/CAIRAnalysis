@@ -264,79 +264,35 @@ def updateSeams(remaining_seams, current_seam):
             output.append(updatedSeam)
         return output
 
-def redimensionarImagem(img, limite=1000):
-    altura, largura = img.shape[:2]
-
-    if largura < limite and altura < limite:
-        return img.copy()
-    
-    if largura > altura:
-        fatorEscala = limite/largura
-        novaLargura = limite
-        novaAltura = int(altura * fatorEscala)
-
-    if altura > largura:
-        fatorEscala = limite/altura
-        novaAltura = limite
-        novaLargura = int(largura * fatorEscala)
-
-    imgRedimensionada = cv2.resize(img, (novaLargura, novaAltura), interpolation=cv2.INTER_AREA)
-    return imgRedimensionada
-    
-
-if __name__ == "__main__":
-    # coloque o nome do arquivo da imagem e o diretório abaixo
-    nomeImg = "pedra.jpg"
-    pastaImg = "pedra"
-    imgOriginal = cv2.imread(f"Seam Carving/{pastaImg}/{nomeImg}")
+def seam_carving(imgOriginal, target_width, target_height):
     
     if imgOriginal is None:
-        print(f"Erro: Não foi possível encontrar '{nomeImg}'")
+        print(f"Erro: Não foi possível encontrar '{imgOriginal}'")
     else:
         # reduzir imagem para teste rapido (comentar para usar a imagem original)
         # imgOriginal = cv2.resize(imgOriginal, (800, 600))
         
-        imgOriginal = redimensionarImagem(imgOriginal, limite=500)
         larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
-    
-        experimentos = [
-            # reduzir 100 pixels de largura
-            (larguraOriginal - 100, alturaOriginal, f"{nomeImg}_reduz_largura.jpg"),
 
-            # reduzir 100 pixels de altura
-            (larguraOriginal, alturaOriginal - 100, f"{nomeImg}_reduz_altura.jpg"),
+        output = np.copy(imgOriginal)
 
-            # expandir 50% da largura
-            (int(larguraOriginal * 1.5), alturaOriginal, f"{nomeImg}_expande_largura.jpg"),
+        pixelsParaAlterarLargura = larguraOriginal - target_width
+        pixelsParaAlterarAltura = alturaOriginal - target_height
 
-            # expandir 50% da altura
-            (larguraOriginal, int(alturaOriginal * 1.5), f"{nomeImg}_expande_altura.jpg"),
-            
-            # reduz a largura por 50px e aumenta a altura por 30%
-            (larguraOriginal - 50, int(alturaOriginal * 1.3), f"{nomeImg}_misto.jpg")
-        ]
+        if pixelsParaAlterarLargura != 0:
+            if pixelsParaAlterarLargura > 0:
+                output = seamCarvingRemovalWidth(output, numRemove=pixelsParaAlterarLargura)
+            else:
+                output = seamCarvingInsertWidth(output, numInsert=-pixelsParaAlterarLargura)
+        
+        if pixelsParaAlterarAltura != 0:
+            if pixelsParaAlterarAltura > 0:
+                output = seamCarvingRemovalHeight(output, numRemove=pixelsParaAlterarAltura)
+            else:
+                output = seamCarvingInsertHeight(output, numInsert=-pixelsParaAlterarAltura)
 
-        for idx, (larguraAlvo, alturaAlvo, nomeSaida) in enumerate(experimentos, 1):
-            print(f"\nRODANDO EXPERIMENTO {idx}...")
-            output = np.copy(imgOriginal)
+        pathSaida = f"Seam Carving/output/output_{target_width}x{target_height}.jpg"
 
-            pixelsParaAlterarLargura = larguraOriginal - larguraAlvo
-            pixelsParaAlterarAltura = alturaOriginal - alturaAlvo
-
-            if pixelsParaAlterarLargura != 0:
-                if pixelsParaAlterarLargura > 0:
-                    output = seamCarvingRemovalWidth(output, numRemove=pixelsParaAlterarLargura)
-                else:
-                    output = seamCarvingInsertWidth(output, numInsert=-pixelsParaAlterarLargura)
-            
-            if pixelsParaAlterarAltura != 0:
-                if pixelsParaAlterarAltura > 0:
-                    output = seamCarvingRemovalHeight(output, numRemove=pixelsParaAlterarAltura)
-                else:
-                    output = seamCarvingInsertHeight(output, numInsert=-pixelsParaAlterarAltura)
-
-            pathSaida = f"Seam Carving/{pastaImg}/{nomeSaida}"
-
-            cv2.imwrite(pathSaida, output)
-            print(f"Salvo: {nomeSaida}")
-            cv2.destroyAllWindows()
+        cv2.imwrite(pathSaida, output)
+        print(f"Salvo: {pathSaida}")
+        cv2.destroyAllWindows()

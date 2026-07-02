@@ -9,7 +9,7 @@ pasta_raiz = os.path.dirname(pasta_atual)
 pasta_seam_carving = os.path.join(pasta_raiz, 'Seam Carving')
 sys.path.append(pasta_seam_carving)
 #reaproveitar as funcoes do seamcarving.py
-from seamcarving import computeEnergySobel, computeCumulativeEnergy, backtrackSeam, removeSeam, redimensionarImagem, seamCarvingInsertWidth
+from seam_carving import computeEnergySobel, computeCumulativeEnergy, backtrackSeam, removeSeam, seamCarvingInsertWidth
 
 
 #reduzir por escala
@@ -142,8 +142,10 @@ def calcular_custo(img_original, img_alvo):
 
 
 #calcula os melhores caminhos pra achar a imagem com melhor custo
-def otimizar_dimensao(img_original, pixels_remover, step_size=10):
+def otimizar_dimensao(img, pixels_remover, step_size=10):
     #arredonda pra multiplo do step size
+    if 0 < pixels_remover < step_size:
+        step_size = pixels_remover
     pixels_remover = (pixels_remover // step_size) * step_size
     
     #inicializa
@@ -159,11 +161,11 @@ def otimizar_dimensao(img_original, pixels_remover, step_size=10):
         for crop_px in range(0, sobra_apos_seam + 1, step_size):
             scale_px = pixels_remover - seam_px - crop_px
             
-            img_temp = reduzir_seamcarving(img_original, seam_px)
+            img_temp = reduzir_seamcarving(img, seam_px)
             img_temp = reduzir_crop(img_temp, crop_px)
             img_temp = reduzir_escala(img_temp, scale_px)
             
-            custo = calcular_custo(img_original, img_temp)
+            custo = calcular_custo(img, img_temp)
             
             if custo < melhor_custo:
                 melhor_custo = custo
@@ -175,7 +177,9 @@ def otimizar_dimensao(img_original, pixels_remover, step_size=10):
 
 
 #calcula os melhores caminhos para aumentar a imagem (sem cropping)
-def otimizar_aumento_dimensao(img_original, pixels_adicionar, step_size=10):
+def otimizar_aumento_dimensao(img, pixels_adicionar, step_size=10):
+    if 0 < pixels_adicionar < step_size:
+        step_size = pixels_adicionar
     pixels_adicionar = (pixels_adicionar // step_size) * step_size
     
     melhor_custo = float('inf')
@@ -188,10 +192,10 @@ def otimizar_aumento_dimensao(img_original, pixels_adicionar, step_size=10):
     for seam_px in range(0, pixels_adicionar + 1, step_size):
         scale_px = pixels_adicionar - seam_px
         
-        img_temp = aumentar_seamcarving(img_original, seam_px)
+        img_temp = aumentar_seamcarving(img, seam_px)
         img_temp = aumentar_escala(img_temp, scale_px)
         
-        custo = calcular_custo(img_original, img_temp)
+        custo = calcular_custo(img, img_temp)
         
         if custo < melhor_custo:
             melhor_custo = custo
@@ -203,20 +207,20 @@ def otimizar_aumento_dimensao(img_original, pixels_adicionar, step_size=10):
 
 
 #implementacao do metodo regular path, em que a ordem das operacoes eh fixada
-def multi_operator_regular_path(img_original, largura_alvo, altura_alvo, step_size=10):
-    altura_atual, largura_atual = img_original.shape[:2]
+def multi_operator_regular_path(img, largura_alvo, altura_alvo, step_size=10):
+    altura_atual, largura_atual = img.shape[:2]
     
     #LARGURA
     diff_largura = largura_alvo - largura_atual
     
     if diff_largura < 0:
         print("Otimizando Reducao de Largura")
-        img_temp = otimizar_dimensao(img_original, abs(diff_largura), step_size)
+        img_temp = otimizar_dimensao(img, abs(diff_largura), step_size)
     elif diff_largura > 0:
         print("Otimizando Aumento de Largura")
-        img_temp = otimizar_aumento_dimensao(img_original, diff_largura, step_size)
+        img_temp = otimizar_aumento_dimensao(img, diff_largura, step_size)
     else:
-        img_temp = img_original
+        img_temp = img
 
     # ALTURA
     altura_atual = img_temp.shape[0]
@@ -239,49 +243,31 @@ def multi_operator_regular_path(img_original, largura_alvo, altura_alvo, step_si
 
     return img_final
 
-
-if __name__ == "__main__":
-    # coloque o nome do arquivo da imagem e a pasta onde ela está
-    nomeImg = "pedra.jpg"
-    pastaImg = "pedra"
-    
-    imgOriginal = cv2.imread(f"Multi Operator/{pastaImg}/{nomeImg}")
+def multi_operator(imgOriginal, target_width, target_height):
     
     if imgOriginal is None:
-        print(f"Erro: Não foi possível encontrar {nomeImg}")
+        print("Erro: A imagem fornecida é nula.")
+        return
+    
+    larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
+    
+    print(f"Imagem carregada: {larguraOriginal}x{alturaOriginal}")
+    print(f"Iniciando Multi-Operator para redimensionar para {target_width}x{target_height}...")
+    
+    # Executa o algoritmo com step_size de 20 (bom equilíbrio entre velocidade e qualidade)
+    output = multi_operator_regular_path(imgOriginal, target_width, target_height, step_size=10)
+
+    # Cria a pasta de saída seguindo o padrão do projeto
+    pasta_destino = "Multi Operator/output"
+    os.makedirs(pasta_destino, exist_ok=True)
+    
+    # Nome do ficheiro igual ao do seam carving
+    pathSaida = f"{pasta_destino}/output_{target_width}x{target_height}.jpg"
+    
+    # Guarda e confirma
+    sucesso = cv2.imwrite(pathSaida, output)
+    
+    if sucesso:
+        print(f"Salvo: {pathSaida}")
     else:
-        # reduzir a imagem para os testes rodarem mais rápido
-        imgOriginal = redimensionarImagem(imgOriginal, limite=500)
-        larguraOriginal, alturaOriginal = imgOriginal.shape[1], imgOriginal.shape[0]
-        
-        print(f"Imagem carregada: {larguraOriginal}x{alturaOriginal}")
-
-        experimentos = [
-            # reduzir 100 pixels de largura
-            (larguraOriginal - 100, alturaOriginal, f"{nomeImg}_reduz_largura.jpg"),
-
-            # reduzir 100 pixels de altura
-            (larguraOriginal, alturaOriginal - 100, f"{nomeImg}_reduz_altura.jpg"),
-
-            # expandir 50% da largura
-            (int(larguraOriginal * 1.5), alturaOriginal, f"{nomeImg}_expande_largura.jpg"),
-
-            # expandir 50% da altura
-            (larguraOriginal, int(alturaOriginal * 1.5), f"{nomeImg}_expande_altura.jpg"),
-            
-            # reduz a largura por 50px e aumenta a altura por 30%
-            (larguraOriginal - 50, int(alturaOriginal * 1.3), f"{nomeImg}_misto.jpg")
-        ]
-
-        for idx, (larguraAlvo, alturaAlvo, nomeSaida) in enumerate(experimentos, 1):
-            print(f"\n======================================")
-            print(f"RODANDO EXPERIMENTO {idx} (Alvo: {larguraAlvo}x{alturaAlvo})")
-            print(f"======================================")
-            
-            
-            output = multi_operator_regular_path(imgOriginal, larguraAlvo, alturaAlvo, step_size=20)
-
-            # salva na mesma pasta da imagem original
-            pathSaida = f"Multi Operator/{pastaImg}/{nomeSaida}"
-            cv2.imwrite(pathSaida, output)
-            print(f"\n[!] Salvo: {pathSaida}")
+        print(f"Erro ao tentar salvar: {pathSaida}")
